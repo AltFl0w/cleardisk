@@ -54,6 +54,26 @@ final class FullDiskAccessProbeTests: XCTestCase {
         ]))
     }
 
+    func testDeniedCandidateDoesNotMaskALaterGrantedProbe() {
+        let denied = scratch.appendingPathComponent("system-tcc.db")
+        let granted = scratch.appendingPathComponent("Safari", isDirectory: true)
+
+        XCTAssertTrue(FullDiskAccessProbe.isGranted(
+            candidates: [denied, granted],
+            evaluator: { url in url == denied ? .denied : .granted }
+        ))
+    }
+
+    func testDeniedAndMissingCandidatesRemainDenied() {
+        let denied = scratch.appendingPathComponent("system-tcc.db")
+        let missing = scratch.appendingPathComponent("missing-user-tcc.db")
+
+        XCTAssertFalse(FullDiskAccessProbe.isGranted(
+            candidates: [denied, missing],
+            evaluator: { url in url == denied ? .denied : .missing }
+        ))
+    }
+
     func testUnreadableDirectoryCountsAsDenied() throws {
         let dir = scratch.appendingPathComponent("stocks", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

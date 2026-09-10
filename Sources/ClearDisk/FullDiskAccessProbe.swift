@@ -5,10 +5,10 @@ import Foundation
 /// That user database is gone on macOS 27 (it moved into a ProtectedSystem container),
 /// so `fileExists` always failed and onboarding stayed on "Not enabled yet".
 ///
-/// Probe real reads instead. Missing paths are skipped. The first existing candidate
-/// decides: a successful read means granted, `Operation not permitted` means denied.
+/// Probe real reads instead. Missing and denied paths are skipped because protection differs
+/// between macOS releases. Any successful read of a protected candidate proves the capability.
 enum FullDiskAccessProbe {
-    enum Outcome {
+    enum Outcome: Equatable, Sendable {
         case granted
         case denied
         case missing
@@ -25,13 +25,16 @@ enum FullDiskAccessProbe {
         ]
     }
 
-    static func isGranted(candidates: [URL] = defaultCandidates) -> Bool {
+    static func isGranted(
+        candidates: [URL] = defaultCandidates,
+        evaluator: (URL) -> Outcome = { FullDiskAccessProbe.evaluate($0) }
+    ) -> Bool {
         for url in candidates {
-            switch evaluate(url) {
+            switch evaluator(url) {
             case .granted:
                 return true
             case .denied:
-                return false
+                continue
             case .missing:
                 continue
             }
